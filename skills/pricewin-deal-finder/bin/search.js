@@ -40,6 +40,20 @@ function parse(raw) {
 
 function fmt(n) { return '$' + Number(n).toLocaleString('en-US'); }
 
+// All OTAs return VND for this user's region (Agoda/Google/Booking geo-lock to
+// VND by IP; OpenTravel API returns VND), so every scraped price is converted
+// to USD for display. The rate is fetched live with a sane fallback.
+let VND_PER_USD = 25400;
+async function loadFxRate() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(8000) });
+    const j = await res.json();
+    const r = j?.rates?.VND;
+    if (Number.isFinite(r) && r > 1000) VND_PER_USD = r;
+  } catch { /* keep fallback */ }
+}
+function toUSD(vnd) { return Math.max(1, Math.round(Number(vnd) / VND_PER_USD)); }
+
 // OTAs compared by this skill. OpenTravel is an independent provider, listed
 // in the same tier as Booking/Agoda/Google (not a PriceWin "direct" source).
 const OTAS = ['agoda', 'booking', 'google', 'opentravel'];
@@ -102,6 +116,10 @@ async function main() {
   }
   process.stderr.write(`[search] daemon ok (pid ${launchR.pid || '?'})\n`);
 
+  // FX rate for VND→USD display conversion (all sources price in VND).
+  await loadFxRate();
+  process.stderr.write(`[search] fx: 1 USD = ${VND_PER_USD} VND\n`);
+
   // ── Step 1: OpenTravel API ──────────────────────────────────────────────
   process.stderr.write('[search] opentravel API...\n');
   const otRaw = await run(['opentravel', city, checkIn, checkOut, adults], 20000);
@@ -135,7 +153,7 @@ async function main() {
       const name = h.name?.trim();
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
-      all[name].prices[site] = h.price;
+      all[name].prices[site] = toUSD(h.price);
       all[name].links[site] = cleanLink(h.link ?? '', site);
     }
   }
@@ -151,7 +169,7 @@ async function main() {
       const name = h.name?.trim();
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
-      all[name].prices.google = h.price;
+      all[name].prices.google = toUSD(h.price);
       all[name].links.google = cleanLink(h.link ?? '', 'google');
     }
   } catch (e) {
@@ -166,7 +184,7 @@ async function main() {
     const price = h.cheapestPrice ?? h.price ?? h.pricePerNight;
     if (!name || !price) continue;
     if (!all[name]) all[name] = { prices: {}, links: {} };
-    all[name].prices.opentravel = price;
+    all[name].prices.opentravel = toUSD(price);
     all[name].links.opentravel = h.url ?? h.link ?? '';
   }
 
@@ -265,7 +283,9 @@ async function main() {
   const bestSiteCap = label(bestSite);
   const cta = bestLink ? `[Book on ${bestSiteCap}](${bestLink})` : `Book on ${bestSiteCap}`;
   lines.push(`   ${cta} — ${fmt(bestPrice)}/night`);
-  lines.push(`\n📊 ${sorted.length} hotels | Booking · Agoda · Google · OpenTravel compared`);
+  // Only credit sources that actually returned data this run.
+  const presentSites = OTAS.filter(s => sorted.some(([, d]) => d.prices[s] != null));
+  lines.push(`\n📊 ${sorted.length} hotels | ${presentSites.map(label).join(' · ')} • prices in USD`);
 
   console.log(lines.join('\n'));
 
@@ -297,18 +317,21 @@ async function discoverAgoda(city, checkIn, checkOut, adults, locale) {
   await r(['keyboard-press', 'Escape']);
   await new Promise(res => setTimeout(res, 500));
 
-  // Find and click search button
+  // Find and click search button. Agoda's en-us label is "SEARCH" (uppercase);
+  // match case-insensitively to tolerate locale/label variations.
   const snap3Raw = await run(['snapshot'], 10000);
-  const btnRef = snap3Raw.match(/\[(\d+)\] button "Search"/)?.[1];
+  const btnRef = snap3Raw.match(/\[(\d+)\] button "SEARCH"/i)?.[1];
   if (!btnRef) throw new Error('Search button not found');
 
   await r(['click', btnRef]);
   await new Promise(res => setTimeout(res, 4000));
 
-  // Switch to hotel results tab if needed
+  // Switch to hotel results tab if needed. Agoda opens hotel results in a new
+  // tab at `agoda.com/search` (no locale segment), while the original tab may
+  // land on `/activities/`. Match the hotel-results URL, not a locale path.
   const urlRaw = await r(['current-url'], 5000);
-  if (urlRaw?.url?.includes('/activities/')) {
-    await r(['switch-to-tab-matching', `agoda.com/${locale}/search`], 10000);
+  if (!urlRaw?.url?.includes('agoda.com/search')) {
+    await r(['switch-to-tab-matching', 'agoda.com/search', 'activities'], 10000);
     await new Promise(res => setTimeout(res, 2000));
   }
 
@@ -354,8 +377,9 @@ async function searchGoogleHotels(city, checkIn, checkOut, locale) {
   await r(['goto', url], 25000);
   await new Promise(res => setTimeout(res, 6000));
 
-  // Per-card aria-label selector — the English "Prices for ..." price link.
-  const selector = 'a[aria-label^="Prices for"]';
+  // Per-card aria-label selector — the English Google Hotels price link reads
+  // "Prices starting from <price>, <HotelName>".
+  const selector = 'a[aria-label^="Prices starting from"]';
 
   const probeRaw = await run(['query-all', selector, '50', '0'], 15000);
   const probe = parse(probeRaw);
@@ -363,17 +387,19 @@ async function searchGoogleHotels(city, checkIn, checkOut, locale) {
     throw new Error('Google Hotels: no price-link cards found (selector="' + selector + '")');
   }
 
-  // Parse aria-label → name + price from "Prices for <name> start at <X>".
-  // The amount may be prefixed by any currency symbol/code ($, USD, etc.),
-  // so skip non-digits before the number.
-  const enRe = /^Prices for (.+?) start at\s*\D*?([\d.,]+)/i;
+  // Parse aria-label "Prices starting from <currency><price>, <HotelName>".
+  // Price comes first (skip the currency symbol/code before the digits), then
+  // the hotel name after the comma.
+  const enRe = /^Prices starting from\s*\D*?([\d.,]+),\s*(.+)$/;
   const records = [];
   for (const m of probe.matches) {
     const aria = m.ariaLabel || '';
     const match = aria.match(enRe);
     if (!match) continue;
-    const name = match[1].trim();
-    const priceDigits = match[2].replace(/[^\d]/g, '');
+    // Strip Google's promo suffix ("... GREAT DEAL 51% less than usual",
+    // "... DEAL 19% less than") so the name dedupes cleanly across OTAs.
+    const name = match[2].replace(/\s+(GREAT DEAL|DEAL)\b.*$/i, '').trim();
+    const priceDigits = match[1].replace(/[^\d]/g, '');
     const price = Number(priceDigits);
     if (!name || !Number.isFinite(price) || price <= 0) continue;
     records.push({ name, price, link: m.href || '' });

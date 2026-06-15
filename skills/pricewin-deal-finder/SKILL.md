@@ -1,7 +1,7 @@
 ---
 name: pricewin-deal-finder
 description: "Hotel price comparison & deals across Booking, Agoda, Google Hotels, and OpenTravel for given travel dates and guest count. Use for hotel prices, deals, or comparing OTA rates."
-version: 0.8.0
+version: 0.8.1
 author: PriceWin
 platforms: [linux, macos, windows]
 tags: [hotel, travel, booking, agoda, google, opentravel, price-comparison, deals, ota]
@@ -24,12 +24,14 @@ metadata:
 **ONE command does everything. Run this as your FIRST action — no clarifying questions first:**
 
 ```bash
-cd ~/.hermes/skills/travel/pricewin-deal-finder && node bin/search.js "<city>" <checkInYYYY-MM-DD> <checkOutYYYY-MM-DD> <adults> en-us
+cd {baseDir} && node bin/search.js "<city>" <checkInYYYY-MM-DD> <checkOutYYYY-MM-DD> <adults> en-us
 ```
+
+`{baseDir}` is this skill's install directory (auto-resolved by the runtime). If your runtime does not substitute it, `cd` into the folder that contains this `SKILL.md` (the one with `bin/search.js`). Do NOT hardcode a `~/.hermes/...` or `~/.openclaw/...` path — it differs per platform.
 
 Example:
 ```bash
-cd ~/.hermes/skills/travel/pricewin-deal-finder && node bin/search.js "Hangzhou" 2026-06-10 2026-06-13 2 en-us
+cd {baseDir} && node bin/search.js "Hangzhou" 2026-06-10 2026-06-13 2 en-us
 ```
 
 The script handles everything automatically: daemon launch, Booking + Agoda cache lookup, Google Hotels inline search, OpenTravel API lookup, discovery for new cities, and formatted tier-card output. Just run it and send the output to the user.
@@ -62,7 +64,7 @@ Delegated subagents start with empty history and no skill context — they will 
 
 ✅ The ONLY allowed way to drive a browser in this skill is via `terminal`:
 ```
-terminal: cd ~/.hermes/skills/travel/pricewin-deal-finder && node bin/search.js ...
+terminal: cd {baseDir} && node bin/search.js ...
 ```
 
 **RULE 1 — `search.js` handles everything.** Do not manually call `browse.js` commands, do not call the OpenTravel API separately, do not try to launch the daemon yourself. `search.js` does all of that. Your only job is to call `search.js` and send its output to the user.
@@ -127,8 +129,10 @@ There are no star ratings or area lines — the script does not have that data.
 💡 Tip: <best Hotel Name>
    [Book on <OTA>](<link>) — <price>/night
 
-📊 <N> hotels | Booking · Agoda · Google · OpenTravel compared
+📊 <N> hotels | <sources with data> • prices in USD
 ```
+
+All prices are converted to USD (every OTA prices in VND for this region; a live FX rate is applied). Only sources that actually returned data are listed in the footer.
 
 ---
 
