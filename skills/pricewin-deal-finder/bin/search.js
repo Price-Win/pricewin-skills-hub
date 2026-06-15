@@ -40,9 +40,10 @@ function parse(raw) {
 
 function fmt(n) { return '$' + Number(n).toLocaleString('en-US'); }
 
-// All OTAs return VND for this user's region (Agoda/Google/Booking geo-lock to
-// VND by IP; OpenTravel API returns VND), so every scraped price is converted
-// to USD for display. The rate is fetched live with a sane fallback.
+// Prices are normalized to USD for display. Agoda, Google and OpenTravel
+// geo-lock to VND by IP (so they need conversion); Booking honours USD. The
+// per-record `currency` from extraction drives the conversion. Rate is fetched
+// live with a sane fallback.
 let VND_PER_USD = 25400;
 async function loadFxRate() {
   try {
@@ -52,7 +53,12 @@ async function loadFxRate() {
     if (Number.isFinite(r) && r > 1000) VND_PER_USD = r;
   } catch { /* keep fallback */ }
 }
-function toUSD(vnd) { return Math.max(1, Math.round(Number(vnd) / VND_PER_USD)); }
+function toUSD(price, currency) {
+  const n = Number(price);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (currency === 'VND') return Math.max(1, Math.round(n / VND_PER_USD));
+  return Math.max(1, Math.round(n)); // already USD (or assume USD)
+}
 
 // OTAs compared by this skill. OpenTravel is an independent provider, listed
 // in the same tier as Booking/Agoda/Google (not a PriceWin "direct" source).
@@ -92,6 +98,8 @@ function cleanLink(url, site) {
         'aid', 'label', 'ucfs', 'arphpl', 'srpvid', 'srepoch',
         'all_sr_blocks', 'highlighted_blocks', 'matching_block_id',
         'sr_pri_blocks', 'from', 'hapos', 'hpos', 'sr_order',
+        'nad_id', 'nad_cpc', 'nad_track', 'nad_placement',
+        'req_adults', 'req_children', 'group_children', 'no_rooms',
       ]) u.searchParams.delete(p);
     }
     if (site === 'google') {
@@ -153,7 +161,7 @@ async function main() {
       const name = h.name?.trim();
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
-      all[name].prices[site] = toUSD(h.price);
+      all[name].prices[site] = toUSD(h.price, h.currency);
       all[name].links[site] = cleanLink(h.link ?? '', site);
     }
   }
@@ -169,11 +177,28 @@ async function main() {
       const name = h.name?.trim();
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
-      all[name].prices.google = toUSD(h.price);
+      all[name].prices.google = toUSD(h.price, h.currency);
       all[name].links.google = cleanLink(h.link ?? '', 'google');
     }
   } catch (e) {
     process.stderr.write(`[search] google search failed: ${e.message}\n`);
+  }
+
+  // ── Step 5.6: Booking.com via direct searchresults URL ───────────────────
+  // Booking honours `selected_currency=USD`, so its prices come back in USD.
+  process.stderr.write('[search] booking search inline...\n');
+  try {
+    const bookingRecords = await searchBookingHotels(city, checkIn, checkOut, adults);
+    process.stderr.write(`[search] booking returned ${bookingRecords.length} records\n`);
+    for (const h of bookingRecords) {
+      const name = h.name?.trim();
+      if (!name || !h.price) continue;
+      if (!all[name]) all[name] = { prices: {}, links: {} };
+      all[name].prices.booking = toUSD(h.price, h.currency);
+      all[name].links.booking = cleanLink(h.link ?? '', 'booking');
+    }
+  } catch (e) {
+    process.stderr.write(`[search] booking search failed: ${e.message}\n`);
   }
 
   // OpenTravel — an independent OTA, same tier as Booking/Agoda/Google.
@@ -184,7 +209,7 @@ async function main() {
     const price = h.cheapestPrice ?? h.price ?? h.pricePerNight;
     if (!name || !price) continue;
     if (!all[name]) all[name] = { prices: {}, links: {} };
-    all[name].prices.opentravel = toUSD(price);
+    all[name].prices.opentravel = toUSD(price, h.currency ?? 'VND');
     all[name].links.opentravel = h.url ?? h.link ?? '';
   }
 
@@ -402,9 +427,44 @@ async function searchGoogleHotels(city, checkIn, checkOut, locale) {
     const priceDigits = match[1].replace(/[^\d]/g, '');
     const price = Number(priceDigits);
     if (!name || !Number.isFinite(price) || price <= 0) continue;
-    records.push({ name, price, link: m.href || '' });
+    const currency = /US\$|\bUSD\b|^\$|\s\$/.test(aria) ? 'USD' : 'VND';
+    records.push({ name, price, link: m.href || '', currency });
   }
   return records;
+}
+
+/**
+ * Search Booking.com via its direct searchresults URL and extract cards with an
+ * ad-hoc selector recipe (no cache/discovery needed — the URL is built fresh
+ * each time). Booking honours `selected_currency=USD`, so prices come back in
+ * USD; the recipe also reports the detected currency per record.
+ *
+ * Returns array of { name, price, currency, link }.
+ */
+async function searchBookingHotels(city, checkIn, checkOut, adults) {
+  const url = 'https://www.booking.com/searchresults.html'
+    + `?ss=${encodeURIComponent(city)}`
+    + `&checkin=${checkIn}&checkout=${checkOut}`
+    + `&group_adults=${adults}&no_rooms=1&group_children=0&selected_currency=USD`;
+  await run(['goto', url], 30000);
+  await new Promise(res => setTimeout(res, 6000));
+  // Booking lazy-loads property cards on scroll — scroll down to populate more.
+  for (let i = 0; i < 3; i++) {
+    await run(['scroll', '6000', '900', '250'], 15000);
+    await new Promise(res => setTimeout(res, 1200));
+  }
+
+  const recipe = JSON.stringify({
+    card: 'div[data-testid=property-card]',
+    name: 'div[data-testid=title]',
+    price: 'span[data-testid=price-and-discounted-price]',
+    link: 'a[data-testid=title-link]',
+  });
+  const raw = parse(await run(['extract-all', recipe], 15000));
+  const recs = raw?.records ?? [];
+  return recs
+    .filter(r => r?.name && r?.price)
+    .map(r => ({ name: r.name.trim(), price: r.price, currency: r.currency, link: r.link || '' }));
 }
 
 main().catch(e => {

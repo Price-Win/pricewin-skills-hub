@@ -1,7 +1,7 @@
 ---
 name: pricewin-deal-finder
 description: "Hotel price comparison & deals across Booking, Agoda, Google Hotels, and OpenTravel for given travel dates and guest count. Use for hotel prices, deals, or comparing OTA rates."
-version: 0.8.1
+version: 0.8.2
 author: PriceWin
 platforms: [linux, macos, windows]
 tags: [hotel, travel, booking, agoda, google, opentravel, price-comparison, deals, ota]
@@ -34,7 +34,7 @@ Example:
 cd {baseDir} && node bin/search.js "Hangzhou" 2026-06-10 2026-06-13 2 en-us
 ```
 
-The script handles everything automatically: daemon launch, Booking + Agoda cache lookup, Google Hotels inline search, OpenTravel API lookup, discovery for new cities, and formatted tier-card output. Just run it and send the output to the user.
+The script handles everything automatically: daemon launch, Agoda cache lookup, Google + Booking inline search, OpenTravel API lookup (all cities), discovery for new cities, and formatted tier-card output. Just run it and send the output to the user.
 
 **DO NOT ask clarifying questions first.** Just run the command. Infer all parameters:
 - **Year:** use the current year from today's date unless the user states otherwise. If the requested day/month has already passed this year, assume next year. (Get today's date with `date +%Y-%m-%d` if unsure.)
@@ -132,11 +132,11 @@ There are no star ratings or area lines — the script does not have that data.
 📊 <N> hotels | <sources with data> • prices in USD
 ```
 
-All prices are converted to USD (every OTA prices in VND for this region; a live FX rate is applied). Only sources that actually returned data are listed in the footer.
+All prices are shown in USD. Agoda, Google and OpenTravel geo-lock to VND by IP and are converted via a live FX rate; Booking returns USD natively. Only sources that actually returned data are listed in the footer.
 
 ---
 
 ## Limitations
 
-- First search per city pays the discovery cost (2–4 minutes for Booking + Agoda).
-- Subsequent searches reuse the cache and complete in ~30 seconds.
+- First search per city pays the Agoda discovery cost (2–4 minutes). Google and Booking are inline (no discovery); OpenTravel is a direct API call.
+- Subsequent searches reuse the Agoda cache and complete in ~30–60 seconds.

@@ -153,6 +153,15 @@ async function cmdTrySelectors(jsonStr) {
   out(await call('try-selectors', { selectors }));
 }
 
+// Like try-selectors but returns the FULL record set (try-selectors caps the
+// sample at 3 for a discovery preview). Used for inline ad-hoc extraction.
+async function cmdExtractAll(jsonStr) {
+  if (!jsonStr) bail('Usage: browse extract-all <json>');
+  let selectors;
+  try { selectors = JSON.parse(jsonStr); } catch (e) { bail(`Invalid JSON: ${e.message}`); }
+  out(await call('extract-all', { selectors }));
+}
+
 /**
  * Replace concrete search params + locale segments in a URL with placeholders
  * so the cache can rebuild fresh URLs for new (city, dates, adults, locale)
@@ -443,6 +452,7 @@ const router = {
   press: () => cmdPress(args[0], args[1]),
   'wait-for': () => cmdWaitFor(args[0], args[1], args[2]),
   'try-selectors': () => cmdTrySelectors(args[0]),
+  'extract-all': () => cmdExtractAll(args[0]),
   'save-selectors': () => cmdSaveSelectors(args[0], args[1], args[2], args[3], args[4]),
   'try-extract': () => cmdTryExtract(args[0], args[1], args[2]),
   'current-url': () => cmdCurrentUrl(),
