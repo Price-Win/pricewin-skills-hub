@@ -1,0 +1,34 @@
+name: Publish Skill to ClawHub
+
+# Publishes skills/pricewin-deal-finder to ClawHub.
+#
+# The web form at clawhub.ai/submit only accepts SKILL.md at the repo root, so a
+# monorepo like this one must publish via the CLI/Action with an explicit
+# skill_path. This workflow does that.
+#
+# One-time setup before a real publish:
+#   1. Sign in at https://clawhub.ai (GitHub) and generate a publish token.
+#   2. Store it as a repo secret:  gh secret set CLAWHUB_TOKEN
+# Then run this workflow (Actions tab → "Publish Skill to ClawHub" → Run workflow).
+# Leave dry_run = true first to preview; set it false to actually publish.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview only (no publish). Set to false to actually publish.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write   # required by the reusable workflow to resolve its source
+
+jobs:
+  publish:
+    uses: openclaw/clawhub/.github/workflows/skill-publish.yml@v0.21.0
+    with:
+      skill_path: skills/pricewin-deal-finder
+      dry_run: ${{ inputs.dry_run }}
+    secrets:
+      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}

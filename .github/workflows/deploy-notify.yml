@@ -1,0 +1,127 @@
+name: Deploy and Notify
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Simulate deployment
+        run: |
+          echo "🚀 Starting deployment process..."
+          sleep 2
+          echo "✅ Deployment completed successfully!"
+
+      - name: Validate required secrets
+        run: |
+          if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+            echo "❌ Missing required Telegram secrets"
+            echo "TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:+✅}${TELEGRAM_BOT_TOKEN:-❌}"
+            echo "TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:+✅}${TELEGRAM_CHAT_ID:-❌}"
+            echo "TELEGRAM_TOPIC_ID: ${TELEGRAM_TOPIC_ID:+✅}${TELEGRAM_TOPIC_ID:-❌ (optional)}"
+            exit 1
+          fi
+          echo "✅ All required Telegram secrets are configured"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+
+      - name: Notify Telegram on successful deployment
+        if: ${{ success() }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+        run: |
+          set -euo pipefail
+
+          # Get short commit SHA (first 7 characters)
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+
+          # Escape special characters for JSON
+          COMMIT_MSG=$(cat <<'EOF'
+          ${{ github.event.head_commit.message }}
+          EOF
+          )
+
+          # Build message
+          MESSAGE="✅ Deployment Successful
+
+          Repository: ${{ github.repository }}
+          Commit: ${SHORT_SHA}
+          Message: ${COMMIT_MSG}
+
+          Triggered by: ${{ github.actor }}
+
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Escape message for JSON
+          MESSAGE_JSON=$(echo "${MESSAGE}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+
+          # Send message to Telegram (forum topic)
+          TELEGRAM_RESPONSE=$(curl -s -w "%{http_code}" -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+              \"message_thread_id\": ${TELEGRAM_TOPIC_ID},
+              \"text\": ${MESSAGE_JSON}
+            }")
+
+          # Extract HTTP code from response (last 3 characters)
+          HTTP_CODE="${TELEGRAM_RESPONSE: -3}"
+          RESPONSE_BODY="${TELEGRAM_RESPONSE%???}"
+
+          if [[ "$HTTP_CODE" -eq 200 ]]; then
+            echo "✅ Telegram notification sent successfully"
+          else
+            echo "❌ Failed to send Telegram notification"
+            echo "HTTP Status: $HTTP_CODE"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+
+      - name: Notify Telegram on deployment failure
+        if: ${{ failure() }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+        run: |
+          set -euo pipefail
+
+          # Get short commit SHA
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+
+          # Build error message
+          ERROR_MESSAGE="❌ Deployment Failed
+
+          Repository: ${{ github.repository }}
+          Commit: ${SHORT_SHA}
+          Triggered by: ${{ github.actor }}
+
+          Please check the workflow logs for details:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Escape message for JSON
+          MESSAGE_JSON=$(echo "${ERROR_MESSAGE}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+
+          # Send error notification
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+              \"message_thread_id\": ${TELEGRAM_TOPIC_ID},
+              \"text\": ${MESSAGE_JSON}
+            }" || echo "Failed to send Telegram error notification"

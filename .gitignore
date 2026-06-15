@@ -1,0 +1,12 @@
+
+# skill-bundled deps installed on dev machines
+skills/*/node_modules/
+
+# any nested node_modules (e.g. legacy/)
+**/node_modules/
+
+# local ClawHub publish token (never commit)
+.clawhub.token
+
+# superpowers tool session artifacts
+.superpowers/
