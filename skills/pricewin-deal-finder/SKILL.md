@@ -1,7 +1,7 @@
 ---
 name: pricewin-deal-finder
 description: "Hotel price comparison & deals across Booking, Agoda, Google Hotels, and OpenTravel for given travel dates and guest count. Use for hotel prices, deals, or comparing OTA rates."
-version: 0.8.2
+version: 0.8.3
 author: PriceWin
 platforms: [linux, macos, windows]
 tags: [hotel, travel, booking, agoda, google, opentravel, price-comparison, deals, ota]
@@ -67,7 +67,7 @@ Delegated subagents start with empty history and no skill context — they will 
 terminal: cd {baseDir} && node bin/search.js ...
 ```
 
-**RULE 1 — `search.js` handles everything.** Do not manually call `browse.js` commands, do not call the OpenTravel API separately, do not try to launch the daemon yourself. `search.js` does all of that. Your only job is to call `search.js` and send its output to the user.
+**RULE 1 — `search.js` handles everything. NEVER scrape an OTA yourself.** Do not manually call `browse.js` commands, do not `goto`/`click`/`type` in the browser, do not build Agoda/Booking/Google URLs by hand, do not call the OpenTravel API separately, do not try to launch the daemon yourself. `search.js` already drives the stealth daemon through a careful flow that survives bot-detection — it handles Agoda discovery internally for EVERY city (including Chinese cities like Shanghai, Hangzhou, etc.). **Manually navigating an OTA is the #1 cause of failure: it trips Agoda/Booking anti-bot ("detect automation", "redirect to homepage", "problem completing your search") and gets the IP blocked.** Your ONLY job is to run `search.js` once and send its output. If you think a source is "missing", re-read RULE 4 — do NOT go fetch it by hand.
 
 **RULE 2 — First-time city discovery takes 2–4 minutes.** If `search.js` output contains `"discovering"` or `"launching"` messages, tell the user: "First time searching this city — discovering selectors, this takes about 2–4 minutes..." and wait for the result. Do NOT retry or abort.
 
@@ -83,7 +83,7 @@ The output is Telegram-MarkdownV2-ready. Sending it as-is gives the user clickab
 
 **RULE 3b — If you DO add a suggestion / commentary section after the output, every hotel name you mention MUST also be a markdown hyperlink `[Hotel Name](url)` using the SAME URL the script printed for that hotel.** Never write a hotel name as plain text in your own commentary.
 
-**RULE 4 — If `search.js` errors:** Tell the user what failed in 1 line, then list any partial results (e.g. OpenTravel-only) the script may have printed above the error.
+**RULE 4 — Partial results are NORMAL and acceptable. Never "fix" them by hand.** A source can be absent from the output (e.g. Agoda blocked this run, or OpenTravel has no inventory for the city). That is FINE — send the tier cards with whatever sources are present. The footer (`📊 N hotels | <sources> • prices in USD`) lists exactly what was found. **Do NOT** try to fetch the missing source via the browser, a direct URL, or any other tool — that triggers anti-bot and makes things worse. If `search.js` errors out entirely, tell the user what failed in 1 line and show any partial output it printed above the error. If you want more coverage, the only valid retry is running the SAME `search.js` command again (anti-bot is often transient).
 
 ---
 

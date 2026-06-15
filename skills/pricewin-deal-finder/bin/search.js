@@ -360,6 +360,15 @@ async function discoverAgoda(city, checkIn, checkOut, adults, locale) {
     await new Promise(res => setTimeout(res, 2000));
   }
 
+  // Guard: only cache once we're actually on a hotel-results page. If Agoda
+  // redirected to the homepage/overview (anti-bot, or the search never went
+  // through), bail without caching a broken URL — the caller continues with
+  // Booking + Google, and the next run retries discovery cleanly.
+  const finalUrl = await r(['current-url'], 5000);
+  if (!finalUrl?.url?.includes('agoda.com/search')) {
+    throw new Error('Agoda did not reach a results page (homepage redirect / anti-bot)');
+  }
+
   // Save selectors immediately with city as slug
   await r(['save-selectors', 'agoda', locale, 'search-cards',
     JSON.stringify({
