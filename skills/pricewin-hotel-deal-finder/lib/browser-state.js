@@ -5,7 +5,7 @@
 // subsequent CLI invocations can re-attach to the same browser. Without this
 // every CLI call would spawn a fresh browser and lose its tab + cookies.
 //
-// State layout (~/.cache/pricewin-deal-finder/session-<id>.json):
+// State layout (~/.cache/pricewin-hotel-deal-finder/session-<id>.json):
 //   {
 //     "id": "<8-char id>",
 //     "wsEndpoint": "ws://127.0.0.1:<port>/devtools/browser/<uuid>",
@@ -19,7 +19,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { existsSync, mkdirSync } from 'node:fs';
 
-const STATE_DIR = path.join(os.homedir(), '.cache', 'pricewin-deal-finder');
+const STATE_DIR = path.join(os.homedir(), '.cache', 'pricewin-hotel-deal-finder');
 const DEFAULT_SESSION = 'default';
 
 function ensureDir() {
