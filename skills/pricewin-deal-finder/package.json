@@ -1,16 +1,16 @@
 {
-  "name": "pricewin-hotel-deal-finder",
-  "version": "1.0.1",
+  "name": "pricewin-deal-finder",
+  "version": "0.8.4",
   "type": "module",
   "private": true,
   "description": "Agent-driven browser primitives + OpenTravel API client. The agent reasons over text DOM snapshots and drives the browser action-by-action — no pre-coded selectors.",
   "author": "PriceWin",
   "license": "MIT-0",
-  "homepage": "https://github.com/Price-Win/pricewin-skills-hub/tree/main/skills/pricewin-hotel-deal-finder#readme",
+  "homepage": "https://github.com/Price-Win/pricewin-skills-hub/tree/main/skills/pricewin-deal-finder#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Price-Win/pricewin-skills-hub.git",
-    "directory": "skills/pricewin-hotel-deal-finder"
+    "directory": "skills/pricewin-deal-finder"
   },
   "bugs": "https://github.com/Price-Win/pricewin-skills-hub/issues",
   "bin": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ----------------------------------------------------------------------------
-# Deploy (publish) skills/pricewin-hotel-deal-finder to ClawHub.
+# Deploy (publish) skills/pricewin-deal-finder to ClawHub.
 #
 # Why this script: the ClawHub web form (clawhub.ai/submit) only accepts a
 # SKILL.md at the source root, so this monorepo must publish via the CLI with an
@@ -21,7 +21,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-SKILL_DIR="skills/pricewin-hotel-deal-finder"
+SKILL_DIR="skills/pricewin-deal-finder"
 REGISTRY="${CLAWHUB_REGISTRY:-https://clawhub.ai}"
 
 DRY_RUN=0
@@ -45,7 +45,7 @@ VERSION="${SKILL_VERSION:-$(node -p "require('./$SKILL_DIR/package.json').versio
 
 # --- build clean bundle (tracked files only → no node_modules) ------------
 WORK="$(mktemp -d)"
-STAGE="$WORK/pricewin-hotel-deal-finder"
+STAGE="$WORK/pricewin-deal-finder"
 mkdir -p "$STAGE"
 git archive "HEAD:$SKILL_DIR" | tar -x -C "$STAGE"
 cleanup() { rm -rf "$WORK"; [[ -n "${CFG:-}" ]] && rm -f "$CFG"; }
@@ -56,7 +56,7 @@ if find "$STAGE" -name node_modules -type d | grep -q .; then
   exit 1
 fi
 
-echo "Skill:   pricewin-hotel-deal-finder"
+echo "Skill:   pricewin-deal-finder"
 echo "Version: $VERSION"
 echo "Bundle:  $STAGE ($(du -sh "$STAGE" | cut -f1))"
 echo "Files:   $(find "$STAGE" -type f | wc -l | tr -d ' ')"
@@ -75,4 +75,4 @@ export CLAWHUB_CONFIG_PATH="$CFG"
 
 echo "--- publishing to ClawHub ---"
 npx --yes clawhub@0.21.0 skill publish "$STAGE" --version "$VERSION"
-echo "✅ published pricewin-hotel-deal-finder@$VERSION → $REGISTRY"
+echo "✅ published pricewin-deal-finder@$VERSION → $REGISTRY"

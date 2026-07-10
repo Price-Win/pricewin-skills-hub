@@ -100,7 +100,7 @@ async function cmdLaunch() {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  bail('Daemon failed to come up within 30s — check stderr or ~/.cache/pricewin-hotel-deal-finder/');
+  bail('Daemon failed to come up within 30s — check stderr or ~/.cache/pricewin-deal-finder/');
 }
 
 async function cmdGoto(url) {
@@ -382,7 +382,7 @@ async function cmdCacheList() {
   const fs = await import('node:fs/promises');
   const path = await import('node:path');
   const os = await import('node:os');
-  const cacheFile = path.join(os.homedir(), '.cache', 'pricewin-hotel-deal-finder', 'selectors.json');
+  const cacheFile = path.join(os.homedir(), '.cache', 'pricewin-deal-finder', 'selectors.json');
   try {
     const raw = await fs.readFile(cacheFile, 'utf8');
     const cache = JSON.parse(raw);

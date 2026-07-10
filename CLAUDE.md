@@ -5,9 +5,12 @@ ClawHub, Hermes, and OpenClaw.
 
 ## Skills
 
-- `skills/pricewin-hotel-deal-finder/` — **standalone** (no MCP), Patchright daemon
-  over Booking.com + Agoda + Google Hotels + OpenTravel API. Live on ClawHub as
-  `pricewin-hotel-deal-finder@1.0.0` (was `pricewin-deal-finder` before rename).
+- `skills/pricewin-deal-finder/` — **standalone** (no MCP), Patchright daemon
+  over Booking.com + Agoda + Google Hotels + OpenTravel API. Canonical slug on
+  skills.sh + ClawHub is **`pricewin-deal-finder`** (~6.4K installs on skills.sh).
+  A brief `pricewin-hotel-deal-finder` rename was reverted and the ClawHub
+  duplicate merged back with a redirect — **renaming a slug forfeits install
+  counts, so keep this slug stable.**
 - The three `pricewin-*` MCP skills drive the `pricewin` MCP server.
 
 ## Publishing (ClawHub)
@@ -35,6 +38,6 @@ skills.sh/GitHub display only.
 
 ## Notes
 
-- Never fold flights/rental-car into the `pricewin-hotel-deal-finder` slug — ship
+- Never fold flights/rental-car into the `pricewin-deal-finder` slug — ship
   them as separate skills. Keep each skill's `description` honest to its CURRENT
   capability (the agent trigger), not the roadmap.

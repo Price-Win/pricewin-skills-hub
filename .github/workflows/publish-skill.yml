@@ -1,6 +1,6 @@
 name: Publish Skill to ClawHub
 
-# Publishes skills/pricewin-hotel-deal-finder to ClawHub.
+# Publishes skills/pricewin-deal-finder to ClawHub.
 #
 # The web form at clawhub.ai/submit only accepts SKILL.md at the repo root, so a
 # monorepo like this one must publish via the CLI/Action with an explicit
@@ -28,7 +28,7 @@ jobs:
   publish:
     uses: openclaw/clawhub/.github/workflows/skill-publish.yml@v0.21.0
     with:
-      skill_path: skills/pricewin-hotel-deal-finder
+      skill_path: skills/pricewin-deal-finder
       dry_run: ${{ inputs.dry_run }}
     secrets:
       clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
