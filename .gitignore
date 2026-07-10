@@ -8,5 +8,10 @@ skills/*/node_modules/
 # local ClawHub publish token (never commit)
 .clawhub.token
 
+# local env / secrets (never commit)
+.env
+.env.*
+!.env.example
+
 # superpowers tool session artifacts
 .superpowers/
