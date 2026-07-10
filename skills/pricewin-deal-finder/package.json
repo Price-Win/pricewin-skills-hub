@@ -1,6 +1,6 @@
 {
   "name": "pricewin-deal-finder",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "type": "module",
   "private": true,
   "description": "Agent-driven browser primitives + OpenTravel API client. The agent reasons over text DOM snapshots and drives the browser action-by-action — no pre-coded selectors.",
