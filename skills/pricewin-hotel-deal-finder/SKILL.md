@@ -1,7 +1,7 @@
 ---
 name: pricewin-hotel-deal-finder
 description: "Find the cheapest hotel deal by comparing live prices across Booking.com, Agoda, Google Hotels, and OpenTravel for any city worldwide and any travel dates — one command returns ranked best-value, cheapest, and quality picks with direct booking links, all normalized to USD. Use whenever someone asks for hotel prices, hotel deals, the cheapest room or rate, best hotel rates, a hotel price comparison, or which OTA is cheaper — e.g. 'is Booking or Agoda cheaper for Tokyo', 'find me a hotel in Bangkok under $100', 'compare hotel prices for 12–15 Aug', 'cheapest hotel near Shinjuku'."
-version: 0.8.4
+version: 1.1.0
 author: PriceWin
 platforms: [linux, macos, windows]
 tags: [hotel-price-comparison, compare-hotel-prices, cheapest-hotel, cheapest-hotels, hotel-deals, booking-vs-agoda, best-hotel-rates, best-rates, hotel-search, hotel-booking, price-comparison, booking-com, agoda, google-hotels, opentravel, ota, hotel, hotels, travel, travel-deals, trip-planning, accommodation, deals]
