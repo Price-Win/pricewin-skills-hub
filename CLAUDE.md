@@ -7,12 +7,15 @@ ClawHub, Hermes, and OpenClaw.
 
 - `skills/pricewin-hotel-deal-finder/` — **standalone** (no MCP), Patchright daemon
   over Booking.com + Agoda + Google Hotels + OpenTravel API. Canonical slug on
-  skills.sh + ClawHub is **`pricewin-hotel-deal-finder`**. Deliberately renamed
-  from `pricewin-deal-finder` (keyword choice, accepting the trade-off): skills.sh
-  forfeited the old slug's ~6.4K installs (GitHub indexer, no redirect — new folder
-  = fresh 0-install listing). ClawHub used `skill rename` which PRESERVES the
-  install lineage and keeps `pricewin-deal-finder` as a redirect. **Now keep this
-  slug stable — every further rename forfeits skills.sh installs again.**
+  skills.sh + ClawHub is **`pricewin-hotel-deal-finder`** (ClawHub latest 1.1.x).
+  Deliberately renamed from `pricewin-deal-finder`, **accepting a full install-count
+  reset** (the old slug had ~6.9K skills.sh installs). How it played out on ClawHub:
+  `skill rename`/`merge` could NOT flip the canonical (the target slug was already
+  an alias of the same skill after an earlier accidental merge), so the fix was
+  `skill publish --slug pricewin-hotel-deal-finder` (fresh skill) + `clawhub delete
+  pricewin-deal-finder` (soft-delete old; its slug is reserved ~30 days). Net: one
+  clean canonical skill, install history NOT carried over. **Now keep this slug
+  stable — every rename forks a fresh 0-install listing.**
 - The three `pricewin-*` MCP skills drive the `pricewin` MCP server.
 
 ## Publishing (ClawHub)
