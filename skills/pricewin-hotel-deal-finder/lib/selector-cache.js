@@ -12,7 +12,7 @@
 //     times in a row → entry is dropped, agent re-discovers.
 //   - User can manually wipe via `browse refresh-cache`.
 //
-// Cache file layout (~/.cache/pricewin-deal-finder/selectors.json):
+// Cache file layout (~/.cache/pricewin-hotel-deal-finder/selectors.json):
 //   {
 //     "<site>:<locale>:<task>": {
 //       "selectors": { "card": "[...]", "name": "[...]", ... },
@@ -35,7 +35,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { existsSync, mkdirSync } from 'node:fs';
 
-const CACHE_DIR = path.join(os.homedir(), '.cache', 'pricewin-deal-finder');
+const CACHE_DIR = path.join(os.homedir(), '.cache', 'pricewin-hotel-deal-finder');
 const CACHE_FILE = path.join(CACHE_DIR, 'selectors.json');
 
 const MAX_CONSECUTIVE_FAILS = 3;

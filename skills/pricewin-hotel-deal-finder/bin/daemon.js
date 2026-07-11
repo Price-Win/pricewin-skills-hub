@@ -12,7 +12,7 @@
 //
 // Lifecycle:
 //   - bin/browse.js spawns this with `detached: true` + `unref()` on launch.
-//   - State (port, pid) is written to ~/.cache/pricewin-deal-finder/state.json
+//   - State (port, pid) is written to ~/.cache/pricewin-hotel-deal-finder/state.json
 //   - SIGTERM (sent by `browse close`) → clean shutdown.
 // ----------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@ import { takeSnapshot } from '../lib/snapshot.js';
 import { extractWithSelectors, isExtractionHealthy } from '../lib/dom-extract.js';
 import { saveState, clearState } from '../lib/browser-state.js';
 
-const CACHE_DIR = path.join(os.homedir(), '.cache', 'pricewin-deal-finder');
+const CACHE_DIR = path.join(os.homedir(), '.cache', 'pricewin-hotel-deal-finder');
 
 let browser;
 let context;
