@@ -40,6 +40,34 @@ function parse(raw) {
 
 function fmt(n) { return '$' + Number(n).toLocaleString('en-US'); }
 
+/**
+ * Neutralize untrusted third-party text before it reaches model-visible output.
+ *
+ * Hotel names come from OTA DOM (Booking title, Agoda hotel-name), Google
+ * aria-labels, and the OpenTravel API — none of it is trusted. sanitizeText
+ * defends on two fronts:
+ *   1. Indirect prompt injection — strips control/zero-width/bidi chars, defangs
+ *      the markdown/link control set, and collapses whitespace so scraped text
+ *      cannot smuggle directives or fake structure into the agent's context.
+ *   2. MarkdownV2 integrity — the same removed characters (brackets, parens,
+ *      backticks, backslashes, angle/brace/pipe) are exactly what would corrupt
+ *      the `[name](url)` link syntax, so a crafted or malformed name can't break
+ *      the rendered output.
+ * Empty string ⇒ record is skipped upstream (treated as "no name").
+ */
+function sanitizeText(s, max = 80) {
+  if (typeof s !== 'string') return '';
+  let t = s
+    .normalize('NFC')
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")   // control chars
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\u2028\u2029\uFEFF]/g, "") // zero-width / bidi / line-sep
+    .replace(/[`[\]()<>{}\\|]/g, ' ')                    // markdown + link-breaking chars
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (t.length > max) t = t.slice(0, max).trim() + '…';
+  return t;
+}
+
 // Prices are normalized to USD for display. Agoda, Google and OpenTravel
 // geo-lock to VND by IP (so they need conversion); Booking honours USD. The
 // per-record `currency` from extraction drives the conversion. Rate is fetched
@@ -158,7 +186,7 @@ async function main() {
   for (const r of (meR?.ota?.results ?? [])) {
     const site = r.site;
     for (const h of (r.records ?? [])) {
-      const name = h.name?.trim();
+      const name = sanitizeText(h.name);
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
       all[name].prices[site] = toUSD(h.price, h.currency);
@@ -174,7 +202,7 @@ async function main() {
     const googleRecords = await searchGoogleHotels(city, checkIn, checkOut, locale);
     process.stderr.write(`[search] google returned ${googleRecords.length} records\n`);
     for (const h of googleRecords) {
-      const name = h.name?.trim();
+      const name = sanitizeText(h.name);
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
       all[name].prices.google = toUSD(h.price, h.currency);
@@ -191,7 +219,7 @@ async function main() {
     const bookingRecords = await searchBookingHotels(city, checkIn, checkOut, adults);
     process.stderr.write(`[search] booking returned ${bookingRecords.length} records\n`);
     for (const h of bookingRecords) {
-      const name = h.name?.trim();
+      const name = sanitizeText(h.name);
       if (!name || !h.price) continue;
       if (!all[name]) all[name] = { prices: {}, links: {} };
       all[name].prices.booking = toUSD(h.price, h.currency);
@@ -205,12 +233,14 @@ async function main() {
   // Per-night price comes from `cheapestPrice`; the public API returns no
   // booking URL, so the link stays empty (name renders as plain text).
   for (const h of [...(otR.hotels ?? []), ...(otR.indicativeHotels ?? [])]) {
-    const name = h.name?.trim();
+    const name = sanitizeText(h.name);
     const price = h.cheapestPrice ?? h.price ?? h.pricePerNight;
     if (!name || !price) continue;
     if (!all[name]) all[name] = { prices: {}, links: {} };
     all[name].prices.opentravel = toUSD(price, h.currency ?? 'VND');
-    all[name].links.opentravel = h.url ?? h.link ?? '';
+    // Route the partner-API link through cleanLink too, so a non-http(s)
+    // value (e.g. javascript:) can never reach a rendered hyperlink.
+    all[name].links.opentravel = cleanLink(h.url ?? h.link ?? '', 'opentravel');
   }
 
   const sorted = Object.entries(all).sort((a, b) =>
@@ -227,7 +257,7 @@ async function main() {
   const d2 = checkOut.slice(5).replace('-', '/');
 
   const lines = [];
-  lines.push(`🏨 ${city} • ${d1}–${d2} • ${nights} nights • ${adults} guests`);
+  lines.push(`🏨 ${sanitizeText(city, 60) || city} • ${d1}–${d2} • ${nights} nights • ${adults} guests`);
   lines.push('━'.repeat(20));
 
   const labels = ['🥇 BEST VALUE', '🥈 CHEAPEST', '🥉 QUALITY'];
